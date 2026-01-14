@@ -1,0 +1,51 @@
+version: '3.8'
+
+services:
+  # Serviço do Banco de Dados
+  db:
+    image: mysql:8.0
+    container_name: bigbang_db
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD} # <--- Lê do .env
+      MYSQL_DATABASE: ${MYSQL_DATABASE}           # <--- Lê do .env
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      # Note o uso de ${MYSQL_ROOT_PASSWORD} aqui também
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  # Serviço do Backend
+  backend:
+    build: ./backend
+    container_name: bigbang_backend
+    ports:
+      - "${PORT}:${PORT}"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: ${DATABASE_URL} # <--- Lê do .env
+      JWT_SECRET: ${JWT_SECRET}     # <--- Lê do .env
+      CORS_ORIGIN: "http://localhost:5173"
+      PORT: ${PORT}
+    volumes:
+      - ./backend/uploads:/app/uploads
+
+  # Serviço do Frontend
+  frontend:
+    build: ./frontend
+    container_name: bigbang_frontend
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+
+volumes:
+  mysql_data:
