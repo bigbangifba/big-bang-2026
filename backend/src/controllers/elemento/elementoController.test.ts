@@ -3,7 +3,9 @@ import { Request, Response } from 'express';
 import * as ElementoController from './elementoController.js';
 import * as ElementoService from '../../services/elemento/elementoService.js';
 
-// 1. Mockamos o Service inteiro
+// --- MOCKS ---
+
+// 1. Mock do Service
 vi.mock('../../services/elemento/elementoService', () => ({
     listarElementos: vi.fn(),
     buscarPorId: vi.fn(),
@@ -11,6 +13,17 @@ vi.mock('../../services/elemento/elementoService', () => ({
     atualizarElemento: vi.fn(),
     deletarElemento: vi.fn(),
 }));
+
+// 2. Mock do Sharp (CRUCIAL)
+// O controller usa o Sharp para validar a resolução. Precisamos simular que
+// a imagem é válida para que o teste não falhe na validação.
+vi.mock('sharp', () => {
+    return {
+        default: vi.fn().mockReturnValue({
+            metadata: vi.fn().mockResolvedValue({ width: 89, height: 84 }) // Valores válidos
+        })
+    };
+});
 
 describe('Elemento Controller', () => {
     let req: Partial<Request>;
@@ -25,13 +38,14 @@ describe('Elemento Controller', () => {
         // Setup dos mocks do Express
         jsonMock = vi.fn();
         sendMock = vi.fn();
+        // Permite encadear res.status(200).json(...)
         statusMock = vi.fn().mockReturnValue({ json: jsonMock, send: sendMock });
 
         req = {
             params: {},
             query: {},
             body: {},
-            files: {} // Importante para o Multer
+            files: {}
         } as unknown as Request;
 
         res = {
@@ -44,15 +58,12 @@ describe('Elemento Controller', () => {
     // --- LISTAR ---
     describe('listar', () => {
         it('Sucesso: Deve retornar lista paginada (Status 200)', async () => {
-            // Arrange
             req.query = { page: '1', limit: '10' };
             const mockResultado = { dados: [], total: 0, pagina: 1 };
             (ElementoService.listarElementos as any).mockResolvedValue(mockResultado);
 
-            // Act
             await ElementoController.listar(req as Request, res as Response);
 
-            // Assert
             expect(ElementoService.listarElementos).toHaveBeenCalledWith(1, 10, undefined);
             expect(res.json).toHaveBeenCalledWith(mockResultado);
         });
@@ -91,34 +102,43 @@ describe('Elemento Controller', () => {
         });
     });
 
+    // --- CRIAR ---
     describe('criar', () => {
         it('Sucesso: Deve processar arquivos e criar elemento (Status 201)', async () => {
-            // Arrange: Simulando Multipart Form Data (Multer)
             req.body = {
                 nome: 'Hélio',
                 simbolo: 'He',
                 nivel: '1',
-                dicas: '["Gás Nobre", "Leve"]' // Simulando string JSON enviada pelo form
+                dicas: '["Gás Nobre", "Leve", "Inerte"]' // Simulamos envio como string (form-data)
             };
-            req.files = {
-                'imagem': [{ filename: 'foto-he.png' } as Express.Multer.File],
-                'imagemDistribuicao': [{ filename: 'dist-he.png' } as Express.Multer.File]
+
+            // Mock dos arquivos com propriedades essenciais para o Multer e Sharp
+            const mockFiles = {
+                'imagem': [{
+                    filename: 'foto-he.png',
+                    path: 'tmp/foto-he.png', // Necessário para o Sharp ler
+                    fieldname: 'imagem'
+                } as any],
+                'imagemDistribuicao': [{
+                    filename: 'dist-he.png',
+                    path: 'tmp/dist-he.png',
+                    fieldname: 'imagemDistribuicao'
+                } as any]
             };
+            req.files = mockFiles;
 
             const mockCriado = { id: 2, nome: 'Hélio' };
             (ElementoService.criarElemento as any).mockResolvedValue(mockCriado);
 
-            // Act
             await ElementoController.criar(req as Request, res as Response);
 
-            // Assert
-            // Verifica se converteu o JSON de dicas e passou os nomes dos arquivos
             expect(ElementoService.criarElemento).toHaveBeenCalledWith(
                 expect.objectContaining({
                     nome: 'Hélio',
                     simbolo: 'He',
                     nivel: 1,
-                    dicas: ['Gás Nobre', 'Leve']
+                    // O controller deve converter a string JSON em array
+                    dicas: ['Gás Nobre', 'Leve', 'Inerte']
                 }),
                 'foto-he.png',
                 'dist-he.png'
@@ -142,13 +162,13 @@ describe('Elemento Controller', () => {
             );
         });
 
-        it('Erro: Deve retornar 400 se o service falhar (ex: validação)', async () => {
+        it('Erro: Deve retornar 500 se o service lançar erro genérico', async () => {
             (ElementoService.criarElemento as any).mockRejectedValue(new Error('Nome obrigatório'));
 
             await ElementoController.criar(req as Request, res as Response);
 
-            expect(statusMock).toHaveBeenCalledWith(400);
-            expect(jsonMock).toHaveBeenCalledWith({ error: 'Nome obrigatório' });
+            // Controller captura 'new Error' no catch genérico e retorna 500
+            expect(statusMock).toHaveBeenCalledWith(500);
         });
     });
 
@@ -157,9 +177,15 @@ describe('Elemento Controller', () => {
         it('Sucesso: Deve atualizar dados parciais', async () => {
             req.params = { id: '1' };
             req.body = { nome: 'Novo Nome' };
-            req.files = {
-                'imagem': [{ filename: 'nova-foto.png' } as Express.Multer.File]
+
+            const mockFiles = {
+                'imagem': [{
+                    filename: 'nova-foto.png',
+                    path: 'tmp/nova-foto.png',
+                    fieldname: 'imagem'
+                } as any]
             };
+            req.files = mockFiles;
 
             const mockAtualizado = { id: 1, nome: 'Novo Nome' };
             (ElementoService.atualizarElemento as any).mockResolvedValue(mockAtualizado);

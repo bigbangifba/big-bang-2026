@@ -3,6 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import uploadConfig from '../../config/upload.js';
 import { Prisma } from '@prisma/client';
+import {TABELA_PERIODICA_COMPLETA} from "../../constants/TabelaPeriodica.js";
 
 interface CreateDados {
     nome: string;
@@ -24,6 +25,15 @@ interface ResultadoPaginado {
     pagina: number;
     totalPaginas: number;
 }
+
+// Função auxiliar para normalizar strings (remover acentos e converter para minúsculas)
+const normalizeString = (str: string) => {
+    if (!str) return '';
+    return str
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase();
+};
 
 // Função auxiliar para apagar arquivos do disco
 const deletarImagemAntiga = async (imagemUrl: string | null) => {
@@ -105,7 +115,17 @@ export const criarElemento = async (dados: CreateDados, nomeImagem?: string, nom
         throw new Error("É obrigatório fornecer exatamente 3 dicas.");
     }
 
-    // 2. Validação: Elemento já existe
+    // Valida se o elemento existe na tabela periódica, comparando as versões normalizadas
+    const elementoReal = TABELA_PERIODICA_COMPLETA.find(e =>
+        normalizeString(e.s) === dados.simbolo &&
+        normalizeString(e.n) === dados.nome
+    );
+
+    if (!elementoReal) {
+        throw new Error(`O elemento '${dados.nome}' (${dados.simbolo}) não existe na Tabela Periódica oficial.`);
+    }
+
+    // 2. Validação: Elemento já existe (usando os dados normalizados)
     const existe = await prisma.questao.findFirst({
         where: {
             OR: [
@@ -119,12 +139,12 @@ export const criarElemento = async (dados: CreateDados, nomeImagem?: string, nom
         throw new Error("Elemento já cadastrado (Nome ou Símbolo duplicado).");
     }
 
+    // Cria o elemento com os dados normalizados recebidos
     return await prisma.questao.create({
         data: {
             resposta: dados.nome,
             simbolo: dados.simbolo,
             codNivel: dados.nivel,
-            // Mantendo padrão de salvar o path relativo
             imagemUrl: nomeImagem ? `/uploads/${nomeImagem}` : null,
             imgDistribuicao: nomeImagemDistribuicao ? `/uploads/${nomeImagemDistribuicao}` : null,
             dicas: {
@@ -140,20 +160,61 @@ export const criarElemento = async (dados: CreateDados, nomeImagem?: string, nom
 };
 
 export const atualizarElemento = async (id: number, dados: UpdateDados, novoNomeImagem?: string, novoNomeImagemDistribuicao?: string) => {
+
+    // 1. Validação de Dicas (se foram enviadas)
     if (dados.dicas && dados.dicas.length !== 3) {
         throw new Error("É obrigatório manter exatamente 3 dicas.");
     }
+
+    // SE TENTAR MUDAR NOME OU SÍMBOLO ---
+    if (dados.nome || dados.simbolo) {
+
+        // A. Busca os dados atuais no banco para garantir consistência
+        const elementoAtual = await prisma.questao.findUnique({ where: { codQuestao: id } });
+        if (!elementoAtual) throw new Error("Elemento não encontrado");
+
+        const nomeParaValidar = dados.nome || elementoAtual.resposta;
+        const simboloParaValidar = dados.simbolo || elementoAtual.simbolo;
+
+        // B. Verifica se é um elemento real da Tabela Periódica, usando normalização
+        const elementoReal = TABELA_PERIODICA_COMPLETA.find(e =>
+            normalizeString(e.s) === simboloParaValidar &&
+            normalizeString(e.n) === nomeParaValidar
+        );
+
+        if (!elementoReal) {
+            throw new Error(`A combinação '${nomeParaValidar}' e '${simboloParaValidar}' não existe na Tabela Periódica oficial.`);
+        }
+
+        // C. Validação de Duplicidade (IGNORANDO O PRÓPRIO ID)
+        const duplicado = await prisma.questao.findFirst({
+            where: {
+                AND: [
+                    { codQuestao: { not: id } },
+                    {
+                        OR: [
+                            { resposta: nomeParaValidar },
+                            { simbolo: simboloParaValidar }
+                        ]
+                    }
+                ]
+            }
+        });
+
+        if (duplicado) {
+            throw new Error(`Já existe outro elemento cadastrado como: ${duplicado.resposta} (${duplicado.simbolo}).`);
+        }
+    }
+    // -------------------------------------------------------
 
     // Lógica para deletar imagens antigas se houver upload novo
     if (novoNomeImagem || novoNomeImagemDistribuicao) {
         const antigo = await prisma.questao.findUnique({ where: { codQuestao: id } });
 
-        // Se enviou nova imagem principal, deleta a antiga principal
         if (novoNomeImagem && antigo?.imagemUrl) {
             await deletarImagemAntiga(antigo.imagemUrl);
         }
 
-        // Se enviou nova imagem de distribuição, deleta a antiga distribuição
         if (novoNomeImagemDistribuicao && antigo?.imgDistribuicao) {
             await deletarImagemAntiga(antigo.imgDistribuicao);
         }
@@ -163,9 +224,8 @@ export const atualizarElemento = async (id: number, dados: UpdateDados, novoNome
 
     if (dados.nome !== undefined) dataToUpdate.resposta = dados.nome;
     if (dados.simbolo !== undefined) dataToUpdate.simbolo = dados.simbolo;
-    if (dados.nivel !== undefined) dataToUpdate.nivel = { connect: { codNivel: dados.nivel } };
+    if (dados.nivel !== undefined) dataToUpdate.codNivel = dados.nivel;
 
-    // Atualiza paths das imagens
     if (novoNomeImagem) dataToUpdate.imagemUrl = `/uploads/${novoNomeImagem}`;
     if (novoNomeImagemDistribuicao) dataToUpdate.imgDistribuicao = `/uploads/${novoNomeImagemDistribuicao}`;
 
@@ -193,7 +253,6 @@ export const deletarElemento = async (id: number) => {
 
     // Deleta os arquivos físicos
     await deletarImagemAntiga(elemento.imagemUrl);
-
     await deletarImagemAntiga(elemento.imgDistribuicao);
 
     await prisma.dicas.deleteMany({ where: { codQuestao: id } });

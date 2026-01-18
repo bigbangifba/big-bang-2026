@@ -1,10 +1,30 @@
 import { type Request, type Response } from 'express';
+import sharp from 'sharp';
 import * as ElementoService from '../../services/elemento/elementoService.js';
 
 // Interface para tipar o objeto de arquivos do Multer
 interface MulterFiles {
     [fieldname: string]: Express.Multer.File[];
 }
+
+const MAX_WIDTH = 89;
+const MAX_HEIGHT = 84;
+
+const validateImageResolution = async (file: Express.Multer.File | undefined) => {
+    if (!file) {
+        return;
+    }
+
+    const metadata = await sharp(file.path).metadata();
+
+    if (metadata.width && metadata.width > MAX_WIDTH) {
+        throw new Error(`A largura da imagem não deve exceder ${MAX_WIDTH} pixels.`);
+    }
+
+    if (metadata.height && metadata.height > MAX_HEIGHT) {
+        throw new Error(`A altura da imagem não deve exceder ${MAX_HEIGHT} pixels.`);
+    }
+};
 
 export const listar = async (req: Request, res: Response) => {
     try {
@@ -45,6 +65,10 @@ export const criar = async (req: Request, res: Response) => {
         // Pega a imagem de distribuição (campo 'imagemDistribuicao')
         const arquivoDistribuicao = files['imagemDistribuicao'] ? files['imagemDistribuicao'][0] : undefined;
 
+        // Validar resolução das imagens
+        await validateImageResolution(arquivoPrincipal);
+        await validateImageResolution(arquivoDistribuicao);
+
         let dicasArray: string[] = [];
         if (dicas) {
             try {
@@ -65,7 +89,10 @@ export const criar = async (req: Request, res: Response) => {
     } catch (error) {
         console.error(error);
         const mensagemErro = error instanceof Error ? error.message : 'Erro ao criar';
-        return res.status(400).json({ error: mensagemErro });
+        if (mensagemErro.includes('exceder')) {
+            return res.status(400).json({ error: mensagemErro });
+        }
+        return res.status(500).json({ error: 'Erro ao criar' });
     }
 };
 
@@ -78,6 +105,10 @@ export const atualizar = async (req: Request, res: Response) => {
         const files = req.files as MulterFiles;
         const arquivoPrincipal = files['imagem'] ? files['imagem'][0] : undefined;
         const arquivoDistribuicao = files['imagemDistribuicao'] ? files['imagemDistribuicao'][0] : undefined;
+
+        // Validar resolução das imagens
+        await validateImageResolution(arquivoPrincipal);
+        await validateImageResolution(arquivoDistribuicao);
 
         let dicasArray: string[] | undefined = undefined;
         if (dicas) {
@@ -99,6 +130,10 @@ export const atualizar = async (req: Request, res: Response) => {
         return res.json(atualizado);
     } catch (error) {
         console.error(error);
+        const mensagemErro = error instanceof Error ? error.message : 'Erro ao atualizar';
+        if (mensagemErro.includes('exceder')) {
+            return res.status(400).json({ error: mensagemErro });
+        }
         return res.status(500).json({ error: 'Erro ao atualizar' });
     }
 };
