@@ -11,11 +11,10 @@ interface Participante {
     nivel: string;
 }
 
-// Interface para ler as permissões do administrador logado
 interface AdminLogado {
     id: number;
     isSuperAdmin: boolean;
-    podeExcluirParticipantes: boolean; // <--- A permissão específica desta tela
+    podeExcluirParticipantes: boolean;
 }
 
 interface RespostaAPI {
@@ -26,36 +25,37 @@ interface RespostaAPI {
 }
 
 const AdminParticipantesPage: React.FC = () => {
-    // Estados de Dados
+    // --- ESTADOS ---
+    const [busca, setBusca] = useState('');
+    const [nivelFiltro, setNivelFiltro] = useState('TODOS'); // <--- NOVO ESTADO DO FILTRO
     const [participantes, setParticipantes] = useState<Participante[]>([]);
     const [loading, setLoading] = useState(true);
 
-    // Estados de Paginação
     const [paginaAtual, setPaginaAtual] = useState(1);
     const [totalPaginas, setTotalPaginas] = useState(1);
 
-    // Estado de Controle do Modal
     const [editingUser, setEditingUser] = useState<Participante | null>(null);
-
-    // --- NOVO: Estado de Permissão ---
     const [podeExcluir, setPodeExcluir] = useState(false);
 
-    // Carregar dados e permissões ao montar
     useEffect(() => {
-        carregarPermissoes(); // <--- Lê o sessionStorage
-        carregarParticipantes(paginaAtual);
-    }, [paginaAtual]);
+        carregarPermissoes();
+    }, []);
 
-    // --- FUNÇÃO DE PERMISSÕES ---
+    // Atualiza a lista quando a página, a busca ou o FILTRO DE NÍVEL mudar
+    useEffect(() => {
+        const timeoutId = setTimeout(() => {
+            carregarParticipantes(paginaAtual, busca, nivelFiltro);
+        }, 500);
+
+        return () => clearTimeout(timeoutId);
+    }, [paginaAtual, busca, nivelFiltro]); // <--- Adicionado nivelFiltro nas dependências
+
     const carregarPermissoes = () => {
-        const dadosString = sessionStorage.getItem('adminUser'); // Mesmo nome usado no Login
+        const dadosString = sessionStorage.getItem('adminUser');
         if (dadosString) {
             try {
                 const admin: AdminLogado = JSON.parse(dadosString);
-
-                // Regra: Super Admin OU Permissão Específica
                 const temPermissao = Boolean(admin.isSuperAdmin || admin.podeExcluirParticipantes);
-
                 setPodeExcluir(temPermissao);
             } catch (e) {
                 console.error("Erro ao ler permissões", e);
@@ -63,11 +63,15 @@ const AdminParticipantesPage: React.FC = () => {
         }
     };
 
-    const carregarParticipantes = async (page: number) => {
+    // Função atualizada para receber o nível
+    const carregarParticipantes = async (page: number, termoBusca: string, nivel: string) => {
         setLoading(true);
         try {
             const token = sessionStorage.getItem('token');
-            const res = await fetch(`${BASE_URL}/api/participantes?page=${page}&limit=10`, {
+            // Adicionado o parâmetro &nivel=... na URL
+            const url = `${BASE_URL}/api/participantes?page=${page}&limit=10&busca=${termoBusca}&nivel=${nivel}`;
+
+            const res = await fetch(url, {
                 headers: { Authorization: `Bearer ${token}` }
             });
 
@@ -75,10 +79,12 @@ const AdminParticipantesPage: React.FC = () => {
                 const dados: RespostaAPI = await res.json();
                 setParticipantes(dados.data);
                 setTotalPaginas(dados.totalPaginas);
+            } else {
+                toast.error("Erro ao carregar lista.");
             }
         } catch (error) {
             console.error("Erro ao carregar", error);
-            toast.error("Erro ao carregar lista.");
+            toast.error("Erro de conexão.");
         } finally {
             setLoading(false);
         }
@@ -86,7 +92,6 @@ const AdminParticipantesPage: React.FC = () => {
 
     const handleDelete = async (codRanking: number) => {
         if (!window.confirm('Tem certeza que deseja excluir este participante?')) return;
-
         try {
             const token = sessionStorage.getItem('token');
             await fetch(`${BASE_URL}/api/participantes/${codRanking}`, {
@@ -94,7 +99,8 @@ const AdminParticipantesPage: React.FC = () => {
                 headers: { Authorization: `Bearer ${token}` }
             });
             toast.success("Participante excluído!");
-            carregarParticipantes(paginaAtual);
+            // Recarrega usando os filtros atuais
+            carregarParticipantes(paginaAtual, busca, nivelFiltro);
         } catch (error) {
             toast.error('Erro ao excluir.');
         }
@@ -102,12 +108,10 @@ const AdminParticipantesPage: React.FC = () => {
 
     const handleSalvarNome = async (novoNome: string) => {
         if (!editingUser) return;
-
         if (!novoNome.trim()) {
             toast.error("O nome não pode estar vazio");
             return;
         }
-
         try {
             const token = sessionStorage.getItem('token');
             const res = await fetch(`${BASE_URL}/api/participantes/${editingUser.codRanking}`, {
@@ -121,7 +125,7 @@ const AdminParticipantesPage: React.FC = () => {
 
             if (res.ok) {
                 toast.success(`Nome alterado para "${novoNome}"!`);
-                carregarParticipantes(paginaAtual);
+                carregarParticipantes(paginaAtual, busca, nivelFiltro);
                 setEditingUser(null);
             } else {
                 toast.error("Erro ao atualizar nome.");
@@ -133,7 +137,6 @@ const AdminParticipantesPage: React.FC = () => {
 
     const renderPaginacao = () => {
         if (totalPaginas <= 1) return null;
-
         return (
             <div className="d-flex justify-content-center mt-4 gap-2">
                 <button
@@ -143,11 +146,9 @@ const AdminParticipantesPage: React.FC = () => {
                 >
                     Anterior
                 </button>
-
                 <span className="d-flex align-items-center px-3 text-white">
                     Página {paginaAtual} de {totalPaginas}
                 </span>
-
                 <button
                     className="btn btn-outline-light btn-sm"
                     onClick={() => setPaginaAtual(paginaAtual + 1)}
@@ -162,6 +163,82 @@ const AdminParticipantesPage: React.FC = () => {
     return (
         <div className="container mt-4">
             <h2 className="text-white mb-4">👥 Gerenciar Participantes</h2>
+
+            {/* --- ÁREA DE FILTROS (RADIO BUTTONS) --- */}
+            <div className="mb-4 d-flex flex-wrap align-items-center gap-3">
+                <label className="text-white fw-bold me-2 mb-0">Filtrar por Nível:</label>
+
+                <div className="form-check d-flex align-items-center mb-0">
+                    <input
+                        className="form-check-input mt-0"
+                        type="radio"
+                        name="nivelOptions"
+                        id="radioTodos"
+                        value="TODOS"
+                        checked={nivelFiltro === 'TODOS'}
+                        onChange={(e) => { setNivelFiltro(e.target.value); setPaginaAtual(1); }}
+                        style={{ cursor: 'pointer' }}
+                    />
+                    <label className="form-check-label text-white ms-2 mb-0" htmlFor="radioTodos" style={{ cursor: 'pointer' }}>Todos</label>
+                </div>
+
+                <div className="form-check d-flex align-items-center mb-0">
+                    <input
+                        className="form-check-input mt-0"
+                        type="radio"
+                        name="nivelOptions"
+                        id="radioIniciante"
+                        value="INICIANTE"
+                        checked={nivelFiltro === 'INICIANTE'}
+                        onChange={(e) => { setNivelFiltro(e.target.value); setPaginaAtual(1); }}
+                        style={{ cursor: 'pointer' }}
+                    />
+                    <label className="form-check-label text-info ms-2 mb-0" htmlFor="radioIniciante" style={{ cursor: 'pointer' }}>Iniciante</label>
+                </div>
+
+                <div className="form-check d-flex align-items-center mb-0">
+                    <input
+                        className="form-check-input mt-0"
+                        type="radio"
+                        name="nivelOptions"
+                        id="radioCurioso"
+                        value="CURIOSO"
+                        checked={nivelFiltro === 'CURIOSO'}
+                        onChange={(e) => { setNivelFiltro(e.target.value); setPaginaAtual(1); }}
+                        style={{ cursor: 'pointer' }}
+                    />
+                    <label className="form-check-label text-warning ms-2 mb-0" htmlFor="radioCurioso" style={{ cursor: 'pointer' }}>Curioso</label>
+                </div>
+
+                <div className="form-check d-flex align-items-center mb-0">
+                    <input
+                        className="form-check-input mt-0"
+                        type="radio"
+                        name="nivelOptions"
+                        id="radioCientista"
+                        value="CIENTISTA"
+                        checked={nivelFiltro === 'CIENTISTA'}
+                        onChange={(e) => { setNivelFiltro(e.target.value); setPaginaAtual(1); }}
+                        style={{ cursor: 'pointer' }}
+                    />
+                    <label className="form-check-label text-danger ms-2 mb-0" htmlFor="radioCientista" style={{ cursor: 'pointer' }}>Cientista</label>
+                </div>
+            </div>
+
+            {/* CAMPO DE BUSCA */}
+            <div className="mb-4">
+                <input
+                    type="text"
+                    className="form-control"
+                    placeholder="🔍 Buscar participante por nome..."
+                    value={busca}
+                    onChange={(e) => {
+                        setBusca(e.target.value);
+                        setPaginaAtual(1);
+                    }}
+                    style={{ backgroundColor: '#343a40', color: 'white', border: '1px solid #495057' }}
+                />
+            </div>
 
             {loading ? (
                 <div className="text-center text-white">Carregando...</div>
@@ -200,11 +277,10 @@ const AdminParticipantesPage: React.FC = () => {
                                             ✏️ Nome
                                         </button>
 
-                                        {/* LÓGICA DE BLOQUEIO DO BOTÃO EXCLUIR */}
                                         <button
                                             className="btn btn-sm btn-outline-danger"
                                             onClick={() => podeExcluir && handleDelete(user.codRanking)}
-                                            disabled={!podeExcluir} // Desabilita se for false
+                                            disabled={!podeExcluir}
                                             style={!podeExcluir ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
                                             title={!podeExcluir ? "Sem permissão para excluir" : "Excluir participante"}
                                         >
