@@ -4,9 +4,14 @@ import * as ParticipanteService from '../../services/participante/participanteSe
 export const listar = async (req: Request, res: Response) => {
     try {
         const page = Number(req.query.page) || 1;
-        const limit = Number(req.query.limit) || 10; // Padrão de 10 por página
+        const limit = Number(req.query.limit) || 10;
+        const busca = req.query.busca as string;
 
-        const resultado = await ParticipanteService.listarParticipantes(page, limit);
+        // --- NOVO: Captura o nível ---
+        const nivel = req.query.nivel as string;
+
+        // Passamos o nível para o serviço
+        const resultado = await ParticipanteService.listarParticipantes(page, limit, busca, nivel);
         return res.json(resultado);
     } catch (error) {
         return res.status(500).json({ error: 'Erro ao listar participantes' });

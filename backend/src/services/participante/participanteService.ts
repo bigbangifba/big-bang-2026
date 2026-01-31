@@ -1,6 +1,5 @@
-// src/services/participante/participanteService.ts
-
 import prisma from '../../prismaClient.js';
+import { Prisma } from '@prisma/client'; // Importar Prisma para tipagem
 
 interface ResultadoPaginado {
     data: any[];
@@ -9,13 +8,27 @@ interface ResultadoPaginado {
     totalPaginas: number;
 }
 
-export const listarParticipantes = async (page: number = 1, limit: number = 10): Promise<ResultadoPaginado> => {
+export const listarParticipantes = async (page: number = 1, limit: number = 10, busca?: string, nivel?: string): Promise<ResultadoPaginado> => {
     const skip = (page - 1) * limit;
 
-    // Executa em paralelo: Contagem total e Busca da página
+    // Inicializa o objeto where
+    const where: Prisma.rankingWhereInput = {};
+
+    // 1. Filtro de Busca (Texto)
+    if (busca) {
+        where.usuario = { contains: busca };
+    }
+
+    // 2. Filtro de Nível (Radio Button)
+    // Se vier algo diferente de "TODOS" e não for nulo, aplicamos o filtro
+    if (nivel && nivel !== 'TODOS') {
+        where.nivel = nivel;
+    }
+
     const [total, participantes] = await prisma.$transaction([
-        prisma.ranking.count(),
+        prisma.ranking.count({ where }),
         prisma.ranking.findMany({
+            where,
             orderBy: { pontuacao: 'desc' },
             skip,
             take: limit
