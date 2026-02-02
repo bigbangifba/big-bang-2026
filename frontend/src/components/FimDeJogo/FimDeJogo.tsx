@@ -38,7 +38,7 @@ const FimDeJogo: React.FC<FimDeJogoProps> = ({ pontuacao, nivel, nomeJogador }) 
             <div className="botoes-fim-container">
                 {/* Botão Ranking */}
                 <button className="btn-icon-fim" onClick={() => navigate('/ranking')} title="Ver Ranking">
-                    <img src="/img/ranking.png" alt="Ranking" onError={(e) => e.currentTarget.style.display='none'} />
+                    <img src="/img/ranking.webp" alt="Ranking" onError={(e) => e.currentTarget.style.display='none'} />
                     {/* Ícone de fallback caso a imagem falhe */}
                     <span style={{ position:'absolute', fontSize:'2rem', opacity: 0.5 }}></span>
                 </button>
