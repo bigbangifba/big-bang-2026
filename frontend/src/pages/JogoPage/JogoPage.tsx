@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import TabelaPeriodicaInterativa from '../../components/TabelaPeriodicaInterativa/TabelaPeriodicaInterativa.tsx';
 import FimDeJogo from "../../components/FimDeJogo/FimDeJogo.tsx";
 import GameTutorial from '../../components/GameTutorial/GameTutorial.tsx';
+import GameHistoryModal, { type HistoricoJogada } from '../../components/GameHistoryModal/GameHistoryModal.tsx';
 import '../../styles/styleJogoPage.css';
 
 // Configuração da URL da API
@@ -57,6 +58,9 @@ const JogoPage: React.FC = () => {
     type FeedbackType = 'neutro' | 'acerto' | 'erro';
     const [feedbackType, setFeedbackType] = useState<FeedbackType>('neutro');
 
+    // REF para controlar o tempo da mensagem (evitar que ela suma antes da hora)
+    const feedbackTimerRef = useRef<number | null>(null);
+
     // Estados da Rodada
     const [dicasExibidas, setDicasExibidas] = useState<string[]>([]);
     const [pontosDestaDica, setPontosDestaDica] = useState(0);
@@ -68,8 +72,13 @@ const JogoPage: React.FC = () => {
     const [opcoesUsadas, setOpcoesUsadas] = useState<string[]>([]);
     const [posicoesUsadas, setPosicoesUsadas] = useState<string[]>([]);
     const [isPaulingVisible, setIsPaulingVisible] = useState(false);
+
     // Controlar tutorial
     const [tutorialAtivo, setTutorialAtivo] = useState(false);
+
+    // --- NOVO: Estados do Histórico ---
+    const [historico, setHistorico] = useState<HistoricoJogada[]>([]);
+    const [showHistorico, setShowHistorico] = useState(false);
 
     // --- FUNÇÕES DE ÁUDIO ---
     const tocarSomDica = () => {
@@ -97,13 +106,23 @@ const JogoPage: React.FC = () => {
         }
     }, []);
 
-    const mostrarFeedback = (texto: string, tipo: FeedbackType, resetDelay = 2000) => {
+    // --- FUNÇÃO DE FEEDBACK ATUALIZADA ---
+    const mostrarFeedback = (texto: string, tipo: FeedbackType, resetDelay = 3000) => {
+        // Limpa qualquer timer anterior para não apagar a mensagem nova
+        if (feedbackTimerRef.current) {
+            clearTimeout(feedbackTimerRef.current);
+        }
+
         setMensagem(texto);
         setFeedbackType(tipo);
 
+        // Se não for neutro, agenda para limpar depois de X segundos
         if (tipo !== 'neutro') {
-            setTimeout(() => {
+            feedbackTimerRef.current = setTimeout(() => {
                 setFeedbackType('neutro');
+                // Opcional: Se quiser que o texto suma também, descomente abaixo:
+                // setMensagem('');
+                console.log(resetDelay)
             }, resetDelay);
         }
     };
@@ -182,6 +201,31 @@ const JogoPage: React.FC = () => {
         }
     }
 
+    const registrarHistorico = (
+        nomeElemento: string,
+        acertouDica: boolean,
+        acertouPosicao: boolean,
+        pontos: number,
+        pontosDica: number,
+        pontosPosicao: number
+    ) => {
+        const opcao = jogoData?.listaOpcoes.find(op => op.nome === nomeElemento);
+        const imgUrl = opcao ? getImagemUrl(opcao.imgUrl, opcao.nome) : '';
+
+        const novaJogada: HistoricoJogada = {
+            rodada: rodadaAtualIndex + 1,
+            nomeElemento,
+            imagemUrl: imgUrl,
+            acertouDica,
+            acertouPosicao,
+            pontosGanhos: pontos,
+            pontosDica,
+            pontosPosicao
+        };
+
+        setHistorico(prev => [novaJogada, ...prev]);
+    };
+
     const proximaRodada = () => {
         if (jogoEncerrado || !jogoData) return;
         setDicasExibidas([]);
@@ -228,18 +272,24 @@ const JogoPage: React.FC = () => {
         if (opcao.nome === rodada.nomeElemento) {
             tocarSomAcerto();
             setPontuacaoAtual(prev => prev + pontosDestaDica);
-            mostrarFeedback(`🎉 ACERTOU!!! (+${pontosDestaDica} pts) Agora clique na posição correta!`, 'acerto');
+
+            // Mantive o tempo longo (60s) para não sumir enquanto o usuário procura a posição
+            mostrarFeedback(`🎉 ACERTOU O ELEMENTO!!! (+${pontosDestaDica} pts)\nAgora clique na posição correta na tabela periódica!`, 'acerto', 500);
+
             setElementoSelecionado(opcao);
             setOpcoesUsadas(prev => [...prev, opcao.nome]);
             setGameStage('posicionandoElemento');
         } else {
             setBloqueado(true);
             tocarSomErro();
-            mostrarFeedback(`❌ ERROU! Indo para a próxima...`, 'erro');
+
+            registrarHistorico(rodada.nomeElemento, false, false, 0, 0, 0);
+
+            mostrarFeedback(`❌ ERROU! Indo para a próxima...\n Clique em "Ver detalhes" para saber os detalhes da pontuação.`, 'erro');
             setGameStage('precisaDica');
             setTimeout(() => {
                 proximaRodada();
-            }, 1500);
+            }, 1000);
         }
     };
 
@@ -255,18 +305,47 @@ const JogoPage: React.FC = () => {
         }
         setBloqueado(true);
         setGameStage('precisaDica');
+
+        // Captura a mensagem atual (que contém "ACERTOU O ELEMENTO!!!...")
+        const mensagemAnterior = mensagem;
+
         if (posicaoValor === rodada.posicaoElemento) {
             tocarSomAcerto();
             setPontuacaoAtual(prev => prev + PONTOS_POR_POSICAO);
-            mostrarFeedback(`🎉 POSIÇÃO CORRETA! (+${PONTOS_POR_POSICAO} pts)`, 'acerto');
+
+            registrarHistorico(
+                rodada.nomeElemento,
+                true,
+                true,
+                pontosDestaDica + PONTOS_POR_POSICAO,
+                pontosDestaDica,
+                PONTOS_POR_POSICAO
+            );
+
+            // --- ALTERAÇÃO AQUI: Texto adicional sobre "Ver detalhes" ---
+            const msgFinal = `${mensagemAnterior}\n\n🎉 POSIÇÃO CORRETA! (+${PONTOS_POR_POSICAO} pts)\n Clique em "Ver detalhes" para saber os detalhes da pontuação.`;
+            mostrarFeedback(msgFinal, 'acerto', 500); // 5s para ler
+
             setPosicoesUsadas(prev => [...prev, posicaoValor]);
         } else {
             tocarSomErro();
-            mostrarFeedback('❌ Posição incorreta! Preparando próxima rodada...', 'erro');
+
+            registrarHistorico(
+                rodada.nomeElemento,
+                true,
+                false,
+                pontosDestaDica,
+                pontosDestaDica,
+                0
+            );
+
+            const msgFinal = `${mensagemAnterior}\n\n❌ Posição incorreta! (0 pts)\n Clique em "Ver detalhes" para saber os detalhes da pontuação.`;
+
+            mostrarFeedback(msgFinal, 'erro', 500);
         }
         setTimeout(() => {
             proximaRodada();
-        }, 1500);
+        }, 4500); // Aumentei para 4.5s para dar tempo de ler antes de trocar a rodada
     };
 
     const getImagemUrl = (url: string | undefined | null, nomeElemento: string) => {
@@ -308,24 +387,53 @@ const JogoPage: React.FC = () => {
 
     return (
         <>
-            {/* 2. COMPONENTE DE TUTORIAL ADICIONADO AQUI */}
             <GameTutorial isActive={tutorialAtivo} onClose={fecharTutorial} />
 
             <div className="game-layout-container">
                 <div className="game-sidebar-left">
-                    {/* 3. CLASSE 'tour-placar' ADICIONADA */}
                     <div className="player-info-fixed-top tour-placar">
                         <p className="level-info">NÍVEL: {codNivel === '1' ? 'INICIANTE' : codNivel === '2' ? 'CURIOSO' : 'CIENTISTA'}</p>
                         <img src={`/img/avatar/monstrinho${playerAvatarId}.png`} alt="Avatar" className="player-avatar" />
                         <h4 className="player-name">{playerName}</h4>
-                        <p className="player-score">Pontos: {pontuacaoAtual}</p>
+
+                        {/* --- PONTUAÇÃO E BOTÃO "VER DETALHES" --- */}
+                        <p className="player-score" style={{ marginBottom: '8px' }}>
+                            Pontos: {pontuacaoAtual}
+                        </p>
+
+                        <button
+                            onClick={() => setShowHistorico(true)}
+                            title="Ver histórico de acertos e erros"
+                            style={{
+                                background: 'transparent',
+                                border: '1px solid #15d2a3',
+                                color: '#15d2a3',
+                                borderRadius: '20px',
+                                padding: '4px 16px',
+                                fontSize: '0.85rem',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s ease',
+                                display: 'block',
+                                margin: '0 auto'
+                            }}
+                            onMouseEnter={(e) => {
+                                e.currentTarget.style.backgroundColor = '#15d2a3';
+                                e.currentTarget.style.color = '#111';
+                            }}
+                            onMouseLeave={(e) => {
+                                e.currentTarget.style.backgroundColor = 'transparent';
+                                e.currentTarget.style.color = '#15d2a3';
+                            }}
+                        >
+                            Ver detalhes
+                        </button>
                     </div>
 
                     <div className={`status-message-box ${feedbackType}`}>
-                        <p>{mensagem}</p>
+                        {/* whiteSpace: 'pre-wrap' permite que o \n funcione */}
+                        <p style={{ whiteSpace: 'pre-wrap' }}>{mensagem}</p>
                     </div>
 
-                    {/* 4. CLASSE 'tour-ajudas' ADICIONADA (Envolvendo a área do Pauling) */}
                     <div className="tour-ajudas">
                         {isPaulingVisible ? (
                             <div className="pauling-display-area">
@@ -344,7 +452,6 @@ const JogoPage: React.FC = () => {
                     </div>
                 </div>
 
-                {/* 5. CLASSE 'tour-tabela' ADICIONADA */}
                 <div className="game-main-content tour-tabela">
                     <h1 className="question-title">Tabela Periódica</h1>
 
@@ -364,7 +471,6 @@ const JogoPage: React.FC = () => {
                 </div>
 
                 <div className="game-sidebar-right">
-                    {/* 6. CLASSE 'tour-opcoes' ADICIONADA */}
                     <div className="elements-grid tour-opcoes">
                         {jogoData?.listaOpcoes.map((opcao) => (
                             <button
@@ -420,7 +526,6 @@ const JogoPage: React.FC = () => {
                     </div>
 
                     <div className="dicas-area">
-                        {/* 7. CLASSE 'tour-btn-dica' ADICIONADA */}
                         <button
                             className="btn-dica tour-btn-dica"
                             onClick={usarDica}
@@ -446,6 +551,13 @@ const JogoPage: React.FC = () => {
                     </div>
                 </div>
             </div>
+
+            {/* --- NOVO: Modal de Histórico --- */}
+            <GameHistoryModal
+                isOpen={showHistorico}
+                onClose={() => setShowHistorico(false)}
+                historico={historico}
+            />
         </>
     );
 };
