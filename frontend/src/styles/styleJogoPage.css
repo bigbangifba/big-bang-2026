@@ -29,6 +29,7 @@
   height: 100vh;
   overflow-y: auto; /* Scroll vertical INTERNO da coluna */
   overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* --- COLUNA ESQUERDA (AVATAR) --- */
@@ -265,7 +266,7 @@
   /* Adiciona padding INTERNO */
   padding-left: 15px;
   padding-right: 15px;
-  overflow: hidden;
+  /*overflow: hidden;*/
 }
 
 .elements-grid {
@@ -406,7 +407,7 @@
 
   /* IMPORTANTE: Impede que o flexbox force o tamanho mínimo além da largura da tela */
   min-width: 0;
-  overflow: hidden;
+  /*overflow: hidden;*/
 
   margin-top: 10px;
   padding: 0 5px 1rem 5px;
@@ -639,4 +640,125 @@
   height: auto;
   object-fit: contain;
   display: block; /* Remove comportamentos estranhos de linha */
+}
+
+
+@media (max-width: 950px) {
+
+  /* 1. Transforma o layout de 3 colunas em 1 coluna vertical */
+  .game-layout-container {
+    display: flex;
+    flex-direction: column; /* Empilha verticalmente */
+    height: auto;           /* Altura cresce conforme o conteúdo */
+    min-height: 100dvh;     /* Garante tela cheia no mínimo */
+    overflow-y: auto;       /* Habilita scroll da página inteira */
+    overflow-x: hidden;     /* Trava scroll lateral da PÁGINA (mas permite na tabela) */
+  }
+
+  /* 2. Remove as travas de altura das colunas antigas */
+  .game-sidebar-left,
+  .game-main-content,
+  .game-sidebar-right {
+    width: 100%;
+    height: auto;           /* Altura automática */
+    padding: 10px;
+    flex: none;             /* Não tenta esticar */
+    overflow: visible;
+  }
+
+  /* 3. Ajuste do Cabeçalho (Avatar) */
+  .game-sidebar-left {
+    flex-direction: row;    /* Avatar e infos lado a lado */
+    align-items: center;
+    justify-content: center;
+    gap: 15px;
+    background-color: #0d1b2a;
+    padding-bottom: 20px;
+  }
+
+  /* Esconde diagrama de Pauling no mobile para limpar a tela */
+  .pauling-display-area,
+  .pauling-content-area,
+  .pauling-gas-nobre {
+    display: none !important;
+  }
+
+  /* 4. A Mágica da Tabela (Scroll Horizontal) */
+  .game-main-content {
+    display: block;        /* Garante bloco simples */
+    width: 100%;
+    overflow-x: auto;      /* Permite rolar PARA O LADO na tabela */
+    padding: 0;
+  }
+
+  .tabela-grid-container {
+    /* Força a tabela a ter largura suficiente para não quebrar */
+    min-width: 900px;      /* Largura fixa que força o scroll aparecer */
+    margin: 0 auto;
+    /* Removemos transform/scale para não sumir nada */
+    transform: none;
+    margin-top: 20px;
+    margin-bottom: 20px;
+    padding-left: 10px;    /* Espacinho para não colar na borda */
+  }
+
+  /* Ajusta o título para não ficar gigante */
+  .question-title {
+    font-size: 1.5rem;
+    text-align: center;
+    margin-top: 10px;
+    position: sticky;      /* Mantém o título visível */
+    left: 0;
+  }
+
+  /* 5. Ajuste da parte inferior (Opções e Botões) */
+  .game-sidebar-right {
+    background-color: rgba(0,0,0,0.8);
+    padding-bottom: 50px;
+  }
+
+  .elements-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr); /* 4 elementos por linha */
+    gap: 8px;
+    max-width: 100%;
+  }
+
+  .element-option-btn img {
+    width: 100%;
+    height: auto;
+  }
+
+  /* Garante que o container de dicas não cubra a tabela */
+  .dicas-container-central {
+    margin-top: 20px;
+    max-width: 100%;
+  }
+
+  .status-message-box {
+    position: fixed;          /* Fixa na tela (ignora o scroll) */
+    top: 10px;                /* Cola no topo da tela */
+    left: 5%;                 /* Centraliza horizontalmente */
+    width: 90%;               /* Largura segura */
+    z-index: 9999;            /* Garante que fique acima de tudo */
+
+    /* Melhorias visuais para parecer uma notificação */
+    box-shadow: 0 4px 15px rgba(0,0,0,0.8);
+    border: 2px solid rgba(255,255,255,0.2);
+    font-size: 0.9rem;        /* Texto levemente menor para não ocupar muito espaço */
+    padding: 10px;
+
+    /* Animação para chamar atenção quando aparecer */
+    animation: slideInTop 0.4s ease-out;
+  }
+
+  /* Ajuste para o Avatar não ficar escondido atrás da mensagem fixa */
+  .game-sidebar-left {
+    padding-top: 80px; /* Empurra o conteúdo para baixo para dar espaço à mensagem */
+  }
+}
+
+@keyframes slideInTop {
+  from { transform: translateY(-120%); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
 }
