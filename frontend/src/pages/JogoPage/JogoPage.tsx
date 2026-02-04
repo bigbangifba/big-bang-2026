@@ -163,7 +163,6 @@ const JogoPage: React.FC = () => {
                     throw new Error('A API retornou dados em um formato inesperado.');
                 }
                 setJogoData(data);
-                // Mensagem inicial mais limpa
                 setMensagem('Clique em DICAS para começar!');
             } catch (err: unknown) {
                 console.error('Erro no fetchJogoData:', err);
@@ -232,7 +231,6 @@ const JogoPage: React.FC = () => {
             setJogoEncerrado(true);
         } else {
             setRodadaAtualIndex(proximoIndex);
-            // ALTERADO: Removemos "Rodada X." do texto da mensagem, pois já existe o título fixo
             mostrarFeedback(`Clique em DICAS!`, 'neutro');
         }
     };
@@ -357,7 +355,6 @@ const JogoPage: React.FC = () => {
                             Pontos: {pontuacaoAtual}
                         </p>
 
-                        {/* Wrapper posicionado no CSS, muito mais limpo */}
                         <div className="botao-detalhes-wrapper">
 
                             <button
@@ -397,8 +394,6 @@ const JogoPage: React.FC = () => {
                         </div>
                     </div>
 
-                    {/* --- CAIXA DE MENSAGEM ATUALIZADA --- */}
-                    {/* Agora tem o título da rodada fixo em cima */}
                     <div className={`status-message-box ${feedbackType}`}>
                         <span className="titulo-rodada">
                             RODADA {rodadaAtualIndex + 1}
@@ -531,5 +526,6 @@ const JogoPage: React.FC = () => {
         </>
     );
 };
+
 
 export default JogoPage;
