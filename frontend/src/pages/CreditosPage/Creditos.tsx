@@ -1,6 +1,4 @@
-// src/pages/Creditos.tsx
-
-import React, {useEffect} from 'react';
+import React, { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import '../../styles/styleCreditosTutorialPage.css';
 
@@ -14,10 +12,8 @@ interface Membro {
 const Creditos: React.FC = () => {
 
     useEffect(() => {
-        // Adiciona a classe ao body ao montar o componente
+        // Adiciona a classe ao body para destravar o scroll
         document.body.classList.add('creditos-page-body');
-
-        // Remove a classe ao desmontar (sair da página)
         return () => {
             document.body.classList.remove('creditos-page-body');
         };
@@ -54,6 +50,7 @@ const Creditos: React.FC = () => {
             nome: "Daiana Flores",
             funcao: "Bolsista",
             descricao: "Elaboração das Dicas",
+            lattes: "http://lattes.cnpq.br/8334177812804291"
         },
         {
             nome: "Priscila Carvalho",
@@ -99,6 +96,7 @@ const Creditos: React.FC = () => {
                 <img src="/img/nome_credito.png" alt="Créditos" className="img-titulo-creditos" />
             </div>
 
+            {/* A "Scroll Area" agora é apenas um container visual, o scroll é na janela */}
             <div className="creditos-scroll-area">
 
                 {/* --- SEÇÃO 2025 --- */}
@@ -132,12 +130,31 @@ const Creditos: React.FC = () => {
                 </div>
             </div>
 
-            {/* Botão Voltar */}
-            <div className="footer-voltar">
-                <Link to="/">
-                    <img src="/img/voltar.webp" className="efeito-btn" alt="Voltar" title="Voltar ao Início" />
-                </Link>
-            </div>
+            {/* Botão Voltar (Agora FIXO no canto) */}
+            <Link
+                to="/"
+                style={{
+                    position: 'fixed',
+                    bottom: '20px',
+                    left: '20px',
+                    zIndex: 9999,
+                    display: 'block',
+                    transition: 'transform 0.2s ease'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.1)'}
+                onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                title="Voltar ao Início"
+            >
+                <img
+                    src="/img/voltar.webp"
+                    alt="Voltar"
+                    style={{
+                        width: '60px',
+                        height: 'auto',
+                        filter: 'drop-shadow(0px 0px 5px rgba(0,0,0,0.5))'
+                    }}
+                />
+            </Link>
         </div>
     );
 };

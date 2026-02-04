@@ -89,7 +89,7 @@ const NiveisPage: React.FC = () => {
                                 style={{ position: 'relative', cursor: 'pointer' }}
                             >
                                 <Link to={`/jogo/selecao-perfil/${nivel.codNivel}`}>
-                                    <img id="imagemNivel" src={config.img} alt={nivel.nome} title={`Nível ${nivel.nome}`} />
+                                    <img id="imagemNivel" src={config.img} alt={nivel.nome} />
                                     <div className="descricao-hover">
                                         <p>{config.texto}</p>
                                     </div>

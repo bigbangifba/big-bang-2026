@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import TabelaPeriodicaInterativa from '../../components/TabelaPeriodicaInterativa/TabelaPeriodicaInterativa.tsx';
 import FimDeJogo from "../../components/FimDeJogo/FimDeJogo.tsx";
@@ -57,6 +57,7 @@ const JogoPage: React.FC = () => {
     const [mensagem, setMensagem] = useState('');
     type FeedbackType = 'neutro' | 'acerto' | 'erro';
     const [feedbackType, setFeedbackType] = useState<FeedbackType>('neutro');
+    const feedbackTimerRef = useRef<number | null>(null);
 
     // Estados da Rodada
     const [dicasExibidas, setDicasExibidas] = useState<string[]>([]);
@@ -73,9 +74,10 @@ const JogoPage: React.FC = () => {
     // Controlar tutorial
     const [tutorialAtivo, setTutorialAtivo] = useState(false);
 
-    // --- NOVO: Estados do Histórico ---
+    // --- NOVO: Estados do Histórico e Balão de Dica ---
     const [historico, setHistorico] = useState<HistoricoJogada[]>([]);
     const [showHistorico, setShowHistorico] = useState(false);
+    const [showDetailHint, setShowDetailHint] = useState(false);
 
     // --- FUNÇÕES DE ÁUDIO ---
     const tocarSomDica = () => {
@@ -96,6 +98,14 @@ const JogoPage: React.FC = () => {
         audio.play().catch(e => console.warn("Erro som erro:", e));
     };
 
+    // --- FUNÇÃO AUXILIAR PARA O BALÃO ---
+    const triggerDetailHint = () => {
+        setShowDetailHint(true);
+        setTimeout(() => {
+            setShowDetailHint(false);
+        }, 5000);
+    };
+
     useEffect(() => {
         const jaViu = localStorage.getItem('bigbang_tutorial_v5');
         if (!jaViu) {
@@ -104,11 +114,13 @@ const JogoPage: React.FC = () => {
     }, []);
 
     const mostrarFeedback = (texto: string, tipo: FeedbackType, resetDelay = 2000) => {
+        if (feedbackTimerRef.current) clearTimeout(feedbackTimerRef.current);
+
         setMensagem(texto);
         setFeedbackType(tipo);
 
         if (tipo !== 'neutro') {
-            setTimeout(() => {
+            feedbackTimerRef.current = setTimeout(() => {
                 setFeedbackType('neutro');
             }, resetDelay);
         }
@@ -123,7 +135,6 @@ const JogoPage: React.FC = () => {
         setTutorialAtivo(true);
     };
 
-    // --- EFEITOS (UseEffect) ---
     useEffect(() => {
         const permissao = sessionStorage.getItem('jogo_ativo');
         if (!permissao) {
@@ -147,15 +158,13 @@ const JogoPage: React.FC = () => {
             try {
                 const response = await fetch(`${API_BASE_URL}/questao/${nivelId}`);
                 if (!response.ok) throw new Error(`Falha na API: Status ${response.status}`);
-
                 const data: JogoData = await response.json();
-
                 if (!data || !Array.isArray(data.rodadas) || data.rodadas.length === 0 || !Array.isArray(data.listaOpcoes)) {
                     throw new Error('A API retornou dados em um formato inesperado.');
                 }
-
                 setJogoData(data);
-                setMensagem('Clique em DICAS para começar a primeira rodada.');
+                // Mensagem inicial mais limpa
+                setMensagem('Clique em DICAS para começar!');
             } catch (err: unknown) {
                 console.error('Erro no fetchJogoData:', err);
                 let errorMessage = 'Erro ao carregar dados.';
@@ -168,7 +177,6 @@ const JogoPage: React.FC = () => {
         fetchJogoData();
     }, [nivelId]);
 
-    // --- LÓGICA DO JOGO ---
     const submeterPontuacao = async () => {
         try {
             const nivelNome = nivelId === 1 ? 'INICIANTE' : nivelId === 2 ? 'CURIOSO' : 'CIENTISTA';
@@ -188,7 +196,6 @@ const JogoPage: React.FC = () => {
         }
     }
 
-    // --- NOVO: Função para registrar histórico ---
     const registrarHistorico = (
         nomeElemento: string,
         acertouDica: boolean,
@@ -199,7 +206,6 @@ const JogoPage: React.FC = () => {
     ) => {
         const opcao = jogoData?.listaOpcoes.find(op => op.nome === nomeElemento);
         const imgUrl = opcao ? getImagemUrl(opcao.imgUrl, opcao.nome) : '';
-
         const novaJogada: HistoricoJogada = {
             rodada: rodadaAtualIndex + 1,
             nomeElemento,
@@ -210,7 +216,6 @@ const JogoPage: React.FC = () => {
             pontosDica,
             pontosPosicao
         };
-
         setHistorico(prev => [novaJogada, ...prev]);
     };
 
@@ -227,7 +232,8 @@ const JogoPage: React.FC = () => {
             setJogoEncerrado(true);
         } else {
             setRodadaAtualIndex(proximoIndex);
-            mostrarFeedback(`Rodada ${proximoIndex + 1}. Clique em DICAS!`, 'neutro');
+            // ALTERADO: Removemos "Rodada X." do texto da mensagem, pois já existe o título fixo
+            mostrarFeedback(`Clique em DICAS!`, 'neutro');
         }
     };
 
@@ -259,6 +265,7 @@ const JogoPage: React.FC = () => {
 
         if (opcao.nome === rodada.nomeElemento) {
             tocarSomAcerto();
+            setShowDetailHint(false);
             setPontuacaoAtual(prev => prev + pontosDestaDica);
             mostrarFeedback(`🎉 ACERTOU!!! (+${pontosDestaDica} pts) Agora clique na posição correta!`, 'acerto');
             setElementoSelecionado(opcao);
@@ -267,15 +274,11 @@ const JogoPage: React.FC = () => {
         } else {
             setBloqueado(true);
             tocarSomErro();
-
-            // --- NOVO: Registra erro no histórico ---
+            triggerDetailHint();
             registrarHistorico(rodada.nomeElemento, false, false, 0, 0, 0);
-
-            mostrarFeedback(`❌ ERROU! Indo para a próxima... \n\n Clique em "Ver detalhes" para saber mais`, 'erro');
+            mostrarFeedback(`❌ ERROU! Indo para a próxima...`, 'erro');
             setGameStage('precisaDica');
-            setTimeout(() => {
-                proximaRodada();
-            }, 2000);
+            setTimeout(() => { proximaRodada(); }, 2000);
         }
     };
 
@@ -294,58 +297,30 @@ const JogoPage: React.FC = () => {
 
         if (posicaoValor === rodada.posicaoElemento) {
             tocarSomAcerto();
+            setShowDetailHint(false);
             setPontuacaoAtual(prev => prev + PONTOS_POR_POSICAO);
-
-            // --- NOVO: Registra acerto total no histórico ---
-            registrarHistorico(
-                rodada.nomeElemento,
-                true,
-                true,
-                pontosDestaDica + PONTOS_POR_POSICAO,
-                pontosDestaDica,
-                PONTOS_POR_POSICAO
-            );
-
-            mostrarFeedback(`🎉 POSIÇÃO CORRETA! (+${PONTOS_POR_POSICAO} pts)\n\n Clique em "Ver detalhes" para saber mais`, 'acerto');
+            registrarHistorico(rodada.nomeElemento, true, true, pontosDestaDica + PONTOS_POR_POSICAO, pontosDestaDica, PONTOS_POR_POSICAO);
+            mostrarFeedback(`🎉 POSIÇÃO CORRETA! (+${PONTOS_POR_POSICAO} pts)`, 'acerto');
             setPosicoesUsadas(prev => [...prev, posicaoValor]);
         } else {
             tocarSomErro();
-
-            // --- NOVO: Registra acerto parcial no histórico ---
-            registrarHistorico(
-                rodada.nomeElemento,
-                true,
-                false,
-                pontosDestaDica,
-                pontosDestaDica,
-                0
-            );
-
-            mostrarFeedback(`❌ Posição incorreta! Preparando próxima rodada...\n\n Clique em "Ver detalhes" para saber mais`, 'erro');
+            triggerDetailHint();
+            registrarHistorico(rodada.nomeElemento, true, false, pontosDestaDica, pontosDestaDica, 0);
+            mostrarFeedback(`❌ Posição incorreta!`, 'erro');
         }
-        setTimeout(() => {
-            proximaRodada();
-        }, 2000);
+        setTimeout(() => { proximaRodada(); }, 2000);
     };
 
     const getImagemUrl = (url: string | undefined | null, nomeElemento: string) => {
-        if (url && url.startsWith('/uploads')) {
-            return `${BASE_URL}${url}`;
-        }
-        if (url && (url.startsWith('/img') || url.startsWith('http'))) {
-            return url;
-        }
+        if (url && url.startsWith('/uploads')) { return `${BASE_URL}${url}`; }
+        if (url && (url.startsWith('/img') || url.startsWith('http'))) { return url; }
         return `/img/elementos/${nomeElemento}.jpg`;
     };
 
     const getDistribuicaoUrl = (url: string | undefined | null, nomeElemento: string) => {
-        if (url && url.startsWith('/uploads')) {
-            return `${BASE_URL}${url}`;
-        }
+        if (url && url.startsWith('/uploads')) { return `${BASE_URL}${url}`; }
         return `/img/distribuicao/${nomeElemento.toLowerCase()}.png`;
     };
-
-    // --- RENDERIZAÇÃO ---
 
     if (loading) return <div className="text-center mt-5 text-white">Carregando Jogo...</div>;
     if (error) return <div className="text-center mt-5 text-danger">{error}</div>;
@@ -378,43 +353,57 @@ const JogoPage: React.FC = () => {
                         <h4 className="player-name">{playerName}</h4>
 
                         {/* --- PONTUAÇÃO E BOTÃO "VER DETALHES" --- */}
-
                         <p className="player-score" style={{ marginBottom: '8px' }}>
                             Pontos: {pontuacaoAtual}
                         </p>
 
-                        <button
-                            onClick={() => setShowHistorico(true)}
-                            title="Ver histórico de acertos e erros"
-                            style={{
-                                background: 'transparent',
-                                border: '1px solid #15d2a3', // Cor do tema (Ciano/Verde)
-                                color: '#15d2a3',
-                                borderRadius: '20px', // Borda arredondada (estilo pílula)
-                                padding: '4px 16px',
-                                fontSize: '0.85rem',
-                                cursor: 'pointer',
-                                transition: 'all 0.2s ease',
-                                display: 'block',
-                                margin: '0 auto' // Centraliza
-                            }}
-                            onMouseEnter={(e) => {
-                                e.currentTarget.style.backgroundColor = '#15d2a3';
-                                e.currentTarget.style.color = '#111'; // Texto escuro no hover
-                            }}
-                            onMouseLeave={(e) => {
-                                e.currentTarget.style.backgroundColor = 'transparent';
-                                e.currentTarget.style.color = '#15d2a3';
-                            }}
-                        >
-                            Ver detalhes
-                        </button>
+                        {/* Wrapper posicionado no CSS, muito mais limpo */}
+                        <div className="botao-detalhes-wrapper">
 
-                        {/* ------------------------------------------ */}
+                            <button
+                                onClick={() => {
+                                    setShowHistorico(true);
+                                    setShowDetailHint(false);
+                                }}
+                                title="Ver histórico de acertos e erros"
+                                style={{
+                                    background: 'transparent',
+                                    border: '1px solid #15d2a3',
+                                    color: '#15d2a3',
+                                    borderRadius: '20px',
+                                    padding: '4px 16px',
+                                    fontSize: '0.85rem',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.2s ease',
+                                    display: 'block'
+                                }}
+                                onMouseEnter={(e) => {
+                                    e.currentTarget.style.backgroundColor = '#15d2a3';
+                                    e.currentTarget.style.color = '#111';
+                                }}
+                                onMouseLeave={(e) => {
+                                    e.currentTarget.style.backgroundColor = 'transparent';
+                                    e.currentTarget.style.color = '#15d2a3';
+                                }}
+                            >
+                                Ver detalhes
+                            </button>
+
+                            {/* O Hint agora é controlado por classes CSS no arquivo externo */}
+                            <div className={`hint-tooltip ${showDetailHint ? 'visible' : ''}`}>
+                                Ver mais detalhes.
+                            </div>
+
+                        </div>
                     </div>
 
+                    {/* --- CAIXA DE MENSAGEM ATUALIZADA --- */}
+                    {/* Agora tem o título da rodada fixo em cima */}
                     <div className={`status-message-box ${feedbackType}`}>
-                        <p>{mensagem}</p>
+                        <span className="titulo-rodada">
+                            RODADA {rodadaAtualIndex + 1}
+                        </span>
+                        <p className="texto-mensagem" style={{ whiteSpace: 'pre-wrap' }}>{mensagem}</p>
                     </div>
 
                     <div className="tour-ajudas">
@@ -435,15 +424,14 @@ const JogoPage: React.FC = () => {
                     </div>
                 </div>
 
+                {/* ... (Resto do conteúdo: Tabela e Sidebar Direita) ... */}
                 <div className="game-main-content tour-tabela">
                     <h1 className="question-title">Tabela Periódica</h1>
-
                     <TabelaPeriodicaInterativa
                         onPosicaoClick={handlePosicaoClick}
                         posicoesCorretas={posicoesUsadas}
                         codNivel={nivelId}
                     />
-
                     <div className="dicas-container-central">
                         {dicasExibidas.map((dica, index) => (
                             <h6 key={index} style={{ color: 'white', fontWeight: 'bold' }}>
@@ -535,7 +523,6 @@ const JogoPage: React.FC = () => {
                 </div>
             </div>
 
-            {/* --- NOVO: Modal de Histórico --- */}
             <GameHistoryModal
                 isOpen={showHistorico}
                 onClose={() => setShowHistorico(false)}

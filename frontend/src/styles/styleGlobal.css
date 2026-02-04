@@ -36,13 +36,6 @@ body {
     overflow-y: auto !important;
 }
 
-/* Fundo Ranking */
-.ranking-page-body {
-    background-color: #2F6D6D !important; 
-    background-image: linear-gradient(to bottom, #2F6D6D, #004D40) !important; 
-    min-height: 100vh;
-}
-
 /* --- 3. LAYOUT CENTRALIZADO (Para Home, Ranking, Perfil, etc.) --- */
 .layout-centralizado {
     display: flex;

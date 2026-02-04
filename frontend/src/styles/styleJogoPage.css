@@ -762,3 +762,90 @@
   from { transform: translateY(-120%); opacity: 0; }
   to { transform: translateY(0); opacity: 1; }
 }
+
+.botao-detalhes-wrapper {
+  position: relative;
+  width: fit-content;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  overflow: visible;
+}
+
+/* O Balão (Container) */
+.hint-tooltip {
+  position: absolute;
+  left: 100%; /* Posiciona à DIREITA do botão */
+  top: 50%;
+
+  /* Estado inicial da animação: um pouco para a esquerda e invisível */
+  transform: translateY(-50%) translateX(-10px);
+  opacity: 0;
+
+  margin-left: 12px; /* Distância do botão */
+
+  /* NOVO ESTILO: Fundo branco semi-transparente */
+  background-color: rgba(255, 255, 255, 0.9);
+  color: #0b1842; /* Texto azul escuro para contraste */
+
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: bold;
+  white-space: nowrap;
+
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2); /* Sombra mais suave */
+  z-index: 9999;
+  pointer-events: none;
+  border: 1px solid #15d2a3; /* Mantém a borda do tema */
+
+  /* Animação suave de opacidade e posição */
+  transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
+}
+
+/* Classe que torna o balão visível (controlada pelo React) */
+.hint-tooltip.visible {
+  opacity: 1;
+  /* Estado final da animação: na posição correta */
+  transform: translateY(-50%) translateX(0);
+}
+
+/* A setinha (triângulo) apontando para a esquerda */
+.hint-tooltip::before {
+  content: '';
+  position: absolute;
+  right: 100%; /* Cola na esquerda do balão */
+  top: 50%;
+  margin-top: -5px;
+
+  border-width: 5px;
+  border-style: solid;
+  /* A cor da seta deve ser a mesma do fundo do balão */
+  border-color: transparent rgba(255, 255, 255, 0.9) transparent transparent;
+}
+
+.status-message-box {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  /* (Seus estilos anteriores de cor e padding continuam valendo) */
+}
+
+.titulo-rodada {
+  display: block;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: white; /* Verde destaque */
+  font-weight: 800;
+  margin-bottom: 5px;
+  border-bottom: 1px solid rgba(255,255,255,0.2);
+  padding-bottom: 2px;
+  width: fit-content;
+}
+
+.texto-mensagem {
+  font-size: 1rem;
+  line-height: 1.2;
+}
