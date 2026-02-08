@@ -72,3 +72,55 @@ button:focus-visible {
     background-color: #f9f9f9;
   }
 }
+
+html:has(body.ranking-page-body),
+body.ranking-page-body {
+  /* Remove as travas de altura e largura */
+  display: block !important;
+  place-items: unset !important;
+  width: 100% !important;
+  height: auto !important;
+  min-height: 100vh !important;
+
+  /* Habilita o scroll */
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+
+  /* Reseta margens e paddings globais */
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* 2. Destrava o container ROOT do React */
+body.ranking-page-body #root {
+  display: block !important; /* Flui normalmente de cima para baixo */
+  width: 100% !important;
+  max-width: none !important; /* Remove limite de largura do Vite */
+  height: auto !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  overflow: visible !important;
+}
+
+/* 3. Controla o container interno (.barra) para não quebrar no Desktop */
+body.ranking-page-body .barra {
+  width: 100%;
+  /* No Desktop, limita a largura e centraliza */
+  max-width: 1200px;
+  margin: 0 auto;
+
+  /* Espaçamento interno */
+  padding: 20px;
+  padding-bottom: 100px; /* Espaço para o botão fixo */
+
+  /* Garante que o conteúdo flua */
+  height: auto !important;
+  min-height: 100vh;
+  box-sizing: border-box;
+}
+
+/* Ajuste específico para garantir que o título não cole no topo */
+body.ranking-page-body .row {
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
