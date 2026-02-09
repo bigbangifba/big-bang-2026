@@ -8,40 +8,7 @@ import { AutoComplete } from 'primereact/autocomplete';
 import "primereact/resources/themes/lara-light-indigo/theme.css";
 import "primereact/resources/primereact.min.css";
 import "primeicons/primeicons.css";
-
-// --- DADOS ---
-const TABELA_PERIODICA_FIXA = [
-    { s: 'H', n: 'Hidrogênio' }, { s: 'He', n: 'Hélio' }, { s: 'Li', n: 'Lítio' }, { s: 'Be', n: 'Berílio' },
-    { s: 'B', n: 'Boro' }, { s: 'C', n: 'Carbono' }, { s: 'N', n: 'Nitrogênio' }, { s: 'O', n: 'Oxigênio' },
-    { s: 'F', n: 'Flúor' }, { s: 'Ne', n: 'Neônio' }, { s: 'Na', n: 'Sódio' }, { s: 'Mg', n: 'Magnésio' },
-    { s: 'Al', n: 'Alumínio' }, { s: 'Si', n: 'Silício' }, { s: 'P', n: 'Fósforo' }, { s: 'S', n: 'Enxofre' },
-    { s: 'Cl', n: 'Cloro' }, { s: 'Ar', n: 'Argônio' }, { s: 'K', n: 'Potássio' }, { s: 'Ca', n: 'Cálcio' },
-    { s: 'Sc', n: 'Escândio' }, { s: 'Ti', n: 'Titânio' }, { s: 'V', n: 'Vanádio' }, { s: 'Cr', n: 'Cromo' },
-    { s: 'Mn', n: 'Manganês' }, { s: 'Fe', n: 'Ferro' }, { s: 'Co', n: 'Cobalto' }, { s: 'Ni', n: 'Níquel' },
-    { s: 'Cu', n: 'Cobre' }, { s: 'Zn', n: 'Zinco' }, { s: 'Ga', n: 'Gálio' }, { s: 'Ge', n: 'Germânio' },
-    { s: 'As', n: 'Arsênio' }, { s: 'Se', n: 'Selênio' }, { s: 'Br', n: 'Bromo' }, { s: 'Kr', n: 'Criptônio' },
-    { s: 'Rb', n: 'Rubídio' }, { s: 'Sr', n: 'Estrôncio' }, { s: 'Y', n: 'Ítrio' }, { s: 'Zr', n: 'Zircônio' },
-    { s: 'Nb', n: 'Nióbio' }, { s: 'Mo', n: 'Molibdênio' }, { s: 'Tc', n: 'Tecnécio' }, { s: 'Ru', n: 'Rutênio' },
-    { s: 'Rh', n: 'Ródio' }, { s: 'Pd', n: 'Paládio' }, { s: 'Ag', n: 'Prata' }, { s: 'Cd', n: 'Cádmio' },
-    { s: 'In', n: 'Índio' }, { s: 'Sn', n: 'Estanho' }, { s: 'Sb', n: 'Antimônio' }, { s: 'Te', n: 'Telúrio' },
-    { s: 'I', n: 'Iodo' }, { s: 'Xe', n: 'Xenônio' }, { s: 'Cs', n: 'Césio' }, { s: 'Ba', n: 'Bário' },
-    { s: 'La', n: 'Lantânio' }, { s: 'Ce', n: 'Cério' }, { s: 'Pr', n: 'Praseodímio' }, { s: 'Nd', n: 'Neodímio' },
-    { s: 'Pm', n: 'Promécio' }, { s: 'Sm', n: 'Samário' }, { s: 'Eu', n: 'Európio' }, { s: 'Gd', n: 'Gadolínio' },
-    { s: 'Tb', n: 'Térbio' }, { s: 'Dy', n: 'Disprósio' }, { s: 'Ho', n: 'Hólmio' }, { s: 'Er', n: 'Érbio' },
-    { s: 'Tm', n: 'Túlio' }, { s: 'Yb', n: 'Itérbio' }, { s: 'Lu', n: 'Lutécio' }, { s: 'Hf', n: 'Háfnio' },
-    { s: 'Ta', n: 'Tântalo' }, { s: 'W', n: 'Tungstênio' }, { s: 'Re', n: 'Rênio' }, { s: 'Os', n: 'Ósmio' },
-    { s: 'Ir', n: 'Irídio' }, { s: 'Pt', n: 'Platina' }, { s: 'Au', n: 'Ouro' }, { s: 'Hg', n: 'Mercúrio' },
-    { s: 'Tl', n: 'Tálio' }, { s: 'Pb', n: 'Chumbo' }, { s: 'Bi', n: 'Bismuto' }, { s: 'Po', n: 'Polônio' },
-    { s: 'At', n: 'Astato' }, { s: 'Rn', n: 'Radônio' }, { s: 'Fr', n: 'Frâncio' }, { s: 'Ra', n: 'Rádio' },
-    { s: 'Ac', n: 'Actínio' }, { s: 'Th', n: 'Tório' }, { s: 'Pa', n: 'Protactínio' }, { s: 'U', n: 'Urânio' },
-    { s: 'Np', n: 'Netúnio' }, { s: 'Pu', n: 'Plutônio' }, { s: 'Am', n: 'Amerício' }, { s: 'Cm', n: 'Cúrio' },
-    { s: 'Bk', n: 'Berquélio' }, { s: 'Cf', n: 'Califórnio' }, { s: 'Es', n: 'Einstênio' }, { s: 'Fm', n: 'Férmio' },
-    { s: 'Md', n: 'Mendelévio' }, { s: 'No', n: 'Nobélio' }, { s: 'Lr', n: 'Laurêncio' }, { s: 'Rf', n: 'Rutherfórdio' },
-    { s: 'Db', n: 'Dúbnio' }, { s: 'Sg', n: 'Seabórgio' }, { s: 'Bh', n: 'Bóhrio' }, { s: 'Hs', n: 'Hássio' },
-    { s: 'Mt', n: 'Meitnério' }, { s: 'Ds', n: 'Darmstádio' }, { s: 'Rg', n: 'Roentgênio' }, { s: 'Cn', n: 'Copernício' },
-    { s: 'Nh', n: 'Nihônio' }, { s: 'Fl', n: 'Fleróvio' }, { s: 'Mc', n: 'Moscóvio' }, { s: 'Lv', n: 'Livermório' },
-    { s: 'Ts', n: 'Tenesso' }, { s: 'Og', n: 'Oganessônio' }
-];
+import {TABELA_PERIODICA_COMPLETA} from "../../constants/TabelaPeriodica.ts";
 
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 const api = axios.create({ baseURL: `${BASE_URL}/api` });
@@ -97,7 +64,7 @@ const AdminElementoForm: React.FC = () => {
 
     const search = (event: any) => {
         const query = (event.query || '').toLowerCase();
-        const resultados = TABELA_PERIODICA_FIXA.filter(elemento => {
+        const resultados = TABELA_PERIODICA_COMPLETA.filter(elemento => {
             if (!query.trim()) {
                 return true;
             }

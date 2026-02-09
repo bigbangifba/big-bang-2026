@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from "react-hot-toast";
+import {TABELA_PERIODICA_COMPLETA} from "../../constants/TabelaPeriodica.ts";
 
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
@@ -97,6 +98,16 @@ const AdminElementosPage: React.FC = () => {
         }
     };
 
+    const obterNomeFormatado = (simboloApi: string, nomeApi: string) => {
+        if (!simboloApi) return nomeApi;
+
+        const elementoEncontrado = TABELA_PERIODICA_COMPLETA.find(
+            el => el.s.toLowerCase() === simboloApi.toLowerCase()
+        );
+
+        return elementoEncontrado ? elementoEncontrado.n : nomeApi;
+    };
+
     const handleDelete = async (id: number) => {
         if(!confirm("Tem certeza que deseja excluir este elemento?")) return;
 
@@ -190,8 +201,16 @@ const AdminElementosPage: React.FC = () => {
                             {elementos.map(el => (
                                 <tr key={el.id}>
                                     <td className="text-secondary">#{el.id}</td>
-                                    <td><span className="badge bg-secondary">{el.simbolo}</span></td>
-                                    <td className="fw-bold">{el.nome}</td>
+                                    <td>
+                                        <span className="badge bg-secondary">
+                                            {el.simbolo.charAt(0).toUpperCase() + el.simbolo.slice(1).toLowerCase()}
+                                        </span>
+                                    </td>
+
+                                    <td className="fw-bold">
+                                        {obterNomeFormatado(el.simbolo, el.nome)}
+                                    </td>
+
                                     <td>
                                         {el.codNivel === 1 && <span className="badge bg-info text-dark">INICIANTE</span>}
                                         {el.codNivel === 2 && <span className="badge bg-warning text-dark">CURIOSO</span>}
