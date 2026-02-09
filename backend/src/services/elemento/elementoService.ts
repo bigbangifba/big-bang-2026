@@ -51,14 +51,35 @@ const deletarImagemAntiga = async (imagemUrl: string | null) => {
 
 // --- MÉTODOS ---
 
-export const listarElementos = async (page: number = 1, limit: number = 10, busca?: string): Promise<ResultadoPaginado> => {
+export const listarElementos = async (page: number = 1, limit: number = 10, busca?: string, nivel?: string): Promise<ResultadoPaginado> => {
     const skip = (page - 1) * limit;
-    const where: Prisma.questaoWhereInput = busca ? {
-        OR: [
+
+    // Inicializa o where
+    const where: Prisma.questaoWhereInput = {};
+
+    // 1. Filtro de Busca (Texto)
+    if (busca) {
+        where.OR = [
             { resposta: { contains: busca } },
             { simbolo: { contains: busca } }
-        ]
-    } : {};
+        ];
+    }
+
+    // 2. Filtro de Nível (Radio Button)
+    // O front manda "INICIANTE", "CURIOSO", etc. O banco espera 1, 2, 3.
+    if (nivel && nivel !== 'TODOS') {
+        const mapaNiveis: Record<string, number> = {
+            'INICIANTE': 1,
+            'CURIOSO': 2,
+            'CIENTISTA': 3
+        };
+
+        const codNivel = mapaNiveis[nivel];
+
+        if (codNivel) {
+            where.codNivel = codNivel;
+        }
+    }
 
     const [total, elementos] = await prisma.$transaction([
         prisma.questao.count({ where }),
