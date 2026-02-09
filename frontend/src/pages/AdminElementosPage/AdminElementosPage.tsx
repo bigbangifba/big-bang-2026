@@ -163,7 +163,6 @@ const AdminElementosPage: React.FC = () => {
                 </button>
             </div>
 
-            {/* --- ÁREA DE FILTROS (Igual Participantes) --- */}
             <div className="mb-4 d-flex flex-wrap align-items-center gap-3">
                 <label className="text-white fw-bold me-2 mb-0">Filtrar por Nível:</label>
 
