@@ -32,7 +32,6 @@ export const listar = async (req: Request, res: Response) => {
         const limit = Number(req.query.limit) || 5;
         const busca = req.query.busca as string;
 
-        // --- NOVO: Captura o nível ---
         const nivel = req.query.nivel as string;
 
         // Passamos o nível para o serviço
