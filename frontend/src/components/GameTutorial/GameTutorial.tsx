@@ -94,7 +94,7 @@ const GameTutorial: React.FC<GameTutorialProps> = ({ isActive, onClose }) => {
                         popover: {
                             title: 'FERRAMENTAS DE APOIO 🧩',
                             description: `Os auxílios mudam conforme o nível:<br/><br/>
-                            🟢 <b>Iniciante (5 Itens):</b> Diagrama de Pauling, Subníveis, Numeração das Famílias, Dicas e Cerne do Gás Nobre.<br/><br/>
+                            🟢 <b>Iniciante (5 Itens):</b> Diagrama de Linus Pauling, Subníveis, Numeração das Famílias, Dicas e Cerne do Gás Nobre.<br/><br/>
                             🟡 <b>Curioso (3 Itens):</b> Diagrama de Pauling, Numeração e Dicas.<br/><br/>
                             🔴 <b>Cientista (2 Itens):</b> Apenas Diagrama de Pauling e Dicas.`,
                             side: "right",
@@ -121,5 +121,6 @@ const GameTutorial: React.FC<GameTutorialProps> = ({ isActive, onClose }) => {
 
     return null;
 };
+
 
 export default GameTutorial;
